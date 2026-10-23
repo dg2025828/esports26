@@ -4,7 +4,7 @@
 
 게임 자체에 대한 Google 검색 관심도가 낮아질 때, Twitch에서 해당 게임을 시청하는 관심도도 함께 낮아지는가?
 
-이 프로젝트는 **Google Trends 검색 관심도**와 **Twitch 게임 카테고리의 월별 시청 지표**를 비교한다. 예전 주제처럼 e스포츠 대회만의 팬덤·시청자 수를 측정하는 분석은 아니다. Twitch 자료는 해당 게임 카테고리 전체의 방송을 포함한다.
+이 프로젝트는 **Google Trends 검색 관심도**와 **Twitch 게임 카테고리의 월별 시청 지표**를 비교한다. Twitch 자료는 대회 중계만 따로 집계한 값이 아니라 해당 게임 카테고리 전체의 방송을 포함한다.
 
 ## 데이터 출처와 받는 곳
 
@@ -25,7 +25,7 @@ Kaggle 페이지에 소개된 전체 기간은 2016–2023이지만, 현재 프�
 
 `Rank`, `Game`, `Month`, `Year`, `Hours_watched`, `Hours_Streamed`, `Peak_viewers`, `Peak_channels`, `Streamers`, `Avg_viewers`, `Avg_channels`, `Avg_viewer_ratio`
 
-여기서 `Avg_viewers`는 월평균 동시 시청자 수이며, `Hours_watched`는 월간 총 시청 시간이다. 현재 앱의 보조 축에는 `Avg_viewers`를 표시한다.
+여기서 `Avg_viewers`는 월평균 동시 시청자 수이며, `Hours_watched`는 월간 총 시청 시간이다. 앱에서 `Avg_viewers`, `Peak_viewers`, `Hours_watched` 중 비교할 Twitch 지표를 선택할 수 있다.
 
 ### 2. Google Trends 월별 검색 관심도
 
@@ -51,7 +51,7 @@ Google Trends에서는 검색어를 비교 화면에 추가한 뒤 그래프를 
 
 ## 데이터 처리와 결합
 
-1. `Year`와 `Month`로 월 날짜를 만들고, 각 게임의 Trends 행과 Twitch 행을 게임명 및 월 기준으로 결합한다.
+1. 앱은 저장소의 게임별 Trends CSV 5개를 읽어 `Month`와 검색어 열을 세로형(`Game`, `Month`, `Series`, `RawValue`, `GoogleTrends`)으로 변환한다. `Year`와 `Month`로 만든 월 날짜를 기준으로 Twitch 행과 결합한다.
 2. Twitch의 이름 변형을 정리한다. 예를 들어 `PLAYERUNKNOWN'S BATTLEGROUNDS`와 `PUBG: BATTLEGROUNDS`는 PUBG로 묶고, `Counter-Strike: Global Offensive`는 Counter-Strike로 연결한다. PUBG Mobile은 별도 게임이므로 합치지 않는다.
 3. 현재 Twitch CSV의 마지막 월인 2021-11까지만 두 자료의 결합 분석에 사용한다. Google Trends만 단독으로 보는 화면은 2026-09까지 표시한다. 2026-10은 진행 중인 월이라 제외한다.
 4. `<1`은 원자료에 표시된 1 미만 값이다. 원문 표기는 `RawValue`에 보존하고, 기본 그래프에서는 0.5로 근사한다. 앱에서 결측으로 바꾼 결과와 비교할 수 있다.
@@ -73,6 +73,12 @@ Google Trends에서는 검색어를 비교 화면에 추가한 뒤 그래프를 
 - Kaggle 데이터의 라이선스는 Kaggle 데이터셋 페이지에서 확인한다. 공개 GitHub 사본이 있다는 이유만으로 재배포 권한이 있다고 가정하지 않는다. 출처 표기는 유지한다.
 - 현재 사용한 집계 자료에는 개인 이름·연락처·주소·학번 등 개인 식별 정보가 포함되어 있지 않다.
 
-## Streamlit 링크
+## Streamlit 앱 실행
 
-https://dg2025828-esports26.streamlit.app/
+저장소를 내려받은 뒤 다음 파일들이 같은 폴더에 있는지 확인한다: `app.py`, `requirements.txt`, `Twitch_game_data.csv`, 그리고 `League of Legends_googletrend.csv`, `Counter-Strike_googletrend.csv`, `Dota 2_googletrend.csv`, `PUBG_googletrend.csv`, `Valorant_googletrend.csv`. 앱이 게임별 Trends 원본 CSV를 직접 읽으므로 별도의 통합 CSV를 만들 필요가 없다.
+
+```bash
+python -m pip install -r requirements.txt
+streamlit run app.py
+```
+
