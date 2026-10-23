@@ -7,8 +7,14 @@ import streamlit as st
 
 
 ROOT = Path(__file__).resolve().parent
-TREND_FILE = ROOT / "google_trends_selected_2016_2026.csv"
 TWITCH_FILE = ROOT / "Twitch_game_data.csv"
+TREND_FILES = {
+    "League of Legends": ROOT / "League of Legends_googletrend.csv",
+    "Counter-Strike": ROOT / "Counter-Strike_googletrend.csv",
+    "Dota 2": ROOT / "Dota 2_googletrend.csv",
+    "PUBG": ROOT / "PUBG_googletrend.csv",
+    "Valorant": ROOT / "Valorant_googletrend.csv",
+}
 
 GAME_ORDER = ["League of Legends", "Counter-Strike", "Dota 2", "PUBG", "Valorant"]
 SERIES_COLORS = {
@@ -28,11 +34,30 @@ LAUNCH_MONTH = {
 
 @st.cache_data
 def load_trends():
-    df = pd.read_csv(TREND_FILE)
-    df["Month"] = pd.to_datetime(df["Month"] + "-01", errors="coerce")
-    df["GoogleTrends"] = pd.to_numeric(df["GoogleTrends"], errors="coerce")
-    df["RawValue"] = df["RawValue"].astype(str)
-    return df.dropna(subset=["Month"])
+    frames = []
+    missing = []
+    for game, path in TREND_FILES.items():
+        if not path.exists():
+            missing.append(path.name)
+            continue
+
+        wide = pd.read_csv(path, encoding="utf-8-sig")
+        if "Month" not in wide.columns:
+            raise ValueError(f"{path.name}에 Month 열이 없습니다.")
+
+        long = wide.melt(id_vars="Month", var_name="Series", value_name="RawValue")
+        long["Game"] = game
+        long["Month"] = pd.to_datetime(long["Month"].astype(str) + "-01", errors="coerce")
+        long["RawValue"] = long["RawValue"].astype(str).str.strip()
+        long["GoogleTrends"] = pd.to_numeric(
+            long["RawValue"].replace({"<1": "0.5", "": None, "nan": None}),
+            errors="coerce",
+        )
+        frames.append(long)
+
+    if missing:
+        raise FileNotFoundError("필요한 Google Trends CSV: " + ", ".join(missing))
+    return pd.concat(frames, ignore_index=True).dropna(subset=["Month"])
 
 
 @st.cache_data
