@@ -73,6 +73,6 @@ Google Trends에서는 검색어를 비교 화면에 추가한 뒤 그래프를 
 - Kaggle 데이터의 라이선스는 Kaggle 데이터셋 페이지에서 확인한다. 공개 GitHub 사본이 있다는 이유만으로 재배포 권한이 있다고 가정하지 않는다. 출처 표기는 유지한다.
 - 현재 사용한 집계 자료에는 개인 이름·연락처·주소·학번 등 개인 식별 정보가 포함되어 있지 않다.
 
-  ## Streamlit 링크
+## Streamlit 링크
 
-  https://dg2025828-esports26.streamlit.app/
+https://dg2025828-esports26.streamlit.app/
