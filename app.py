@@ -3,12 +3,13 @@ import io
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
+from trends_review import render_trends_review
 
 ROOT = Path(__file__).resolve().parent
-GAMES = ['Counter-Strike', 'PUBG', 'Dota 2', 'League of Legends', 'Valorant']
+GAMES = ['Counter-Strike', 'PUBG']
 FILES = {g: ROOT / f'{g}_googletrend.csv' for g in GAMES}
-DEFAULT_SERIES = {'League of Legends': 'League of Legends - Topic 1', 'Counter-Strike': 'Counter-Strike Global Offensive', 'Dota 2': 'Dota 2', 'PUBG': 'PUBG Battlegrounds', 'Valorant': 'Valorant - Topic 1'}
-ALIASES = {'VALORANT': 'Valorant', 'Counter-Strike: Global Offensive': 'Counter-Strike', 'Counter-Strike 2': 'Counter-Strike', "PLAYERUNKNOWN'S BATTLEGROUNDS": 'PUBG', 'PUBG: BATTLEGROUNDS': 'PUBG'}
+DEFAULT_SERIES = {'Counter-Strike': 'Counter-Strike Global Offensive', 'PUBG': 'PUBG Battlegrounds'}
+ALIASES = {'Counter-Strike: Global Offensive': 'Counter-Strike', 'Counter-Strike 2': 'Counter-Strike', "PLAYERUNKNOWN'S BATTLEGROUNDS": 'PUBG', 'PUBG: BATTLEGROUNDS': 'PUBG'}
 METRICS = {'Avg_viewers': '평균 동시 시청자 수 (월평균의 평균)', 'Peak_viewers': '최고 동시 시청자 수 (관측 월 중 최고값)', 'Hours_watched': '총 시청 시간 (관측 월 합계, 시간)'}
 
 @st.cache_data
@@ -62,7 +63,7 @@ def load_steam():
         raise ValueError(f'Steam 필수 열 누락: {needed - set(source.columns)}')
     data = source.copy()
     data['steam_appid'] = pd.to_numeric(data.steam_appid, errors='coerce')
-    data['Game'] = data.steam_appid.map({730: 'Counter-Strike', 578080: 'PUBG', 570: 'Dota 2'})
+    data['Game'] = data.steam_appid.map({730: 'Counter-Strike', 578080: 'PUBG'})
     data['Date'] = pd.to_datetime(data.month, format='%y-%b', errors='coerce')
     for column in ['avg_players', 'peak_players']:
         data[column] = pd.to_numeric(data[column], errors='coerce')
@@ -132,12 +133,12 @@ a, b, c = st.columns(3)
 a.metric('Twitch 원본 행 수', f'{len(raw):,}')
 b.metric('Twitch 원본 기간', f'{twitch.Date.min():%Y.%m}–{twitch.Date.max():%Y.%m}')
 c.metric('현재 게임의 표시 연도', f'{len(annual)}개')
-steam_tab, view, compare, records = st.tabs(['Steam × Twitch 분석', 'Twitch 시청 추이', 'Google Trends 보조 분석', '원본·집계 기준'])
+steam_tab, view, compare, review, records = st.tabs(['Steam × Twitch 분석', 'Twitch 시청 추이', 'Google Trends 보조 분석', 'Trends 원본 점검·보조 축', '원본·집계 기준'])
 with steam_tab:
     st.subheader('Steam 플레이어 수와 Twitch 시청 지표')
     st.caption('월평균 동시접속자 수는 연간 이용자 총인원이 아닙니다. 기본 지표 Avg_viewers를 선택하면 평균 동시접속자와 평균 동시 시청자를 비교합니다.')
     if game not in steam.Game.unique():
-        st.info(f'{game}의 Steam 기록이 현재 파일에 없습니다. Steam 비교는 Counter-Strike와 PUBG에서 사용할 수 있습니다. 다른 게임은 Twitch·Google Trends 탭에서 확인하세요.')
+        st.info(f'{game}의 Steam 기록이 현재 파일에 없습니다. Steam ID 730·578080의 입력 파일을 확인하세요.')
     else:
         solo = steam[steam.Game.eq(game) & steam.Year.between(*years)].groupby('Year', as_index=False).agg(
             SteamPlayers=('avg_players', 'mean'), SteamPeak=('peak_players', 'max'), MonthsObserved=('Date', 'nunique'))
@@ -208,7 +209,7 @@ with steam_tab:
         r = part.SteamPlayers.corr(part.Twitch) if n >= 3 and part.SteamPlayers.nunique() > 1 and part.Twitch.nunique() > 1 else float('nan')
         comparisons.append({'Game': name, 'Years': n, 'Pearson': r, 'R_squared_in_sample': r*r})
     st.dataframe(pd.DataFrame(comparisons).round(3), hide_index=True, use_container_width=True)
-    st.caption('게임별 자료 기간과 관측 월 구성이 달라 상관계수의 크기만으로 순위를 매기지 않습니다. 현재 Steam 파일에는 Dota 2가 없습니다.')
+    st.caption('게임별 자료 기간과 관측 월 구성이 달라 상관계수의 크기만으로 순위를 매기지 않습니다. 분석 대상은 Counter-Strike와 PUBG 두 게임입니다.')
 
 with view:
     st.subheader(f'{game} · 연도별 Twitch 시청')
@@ -229,7 +230,7 @@ with compare:
         search = trends[trends.Game.eq(game) & trends.Series.eq(series)].copy()
         search['GoogleTrends'] = pd.to_numeric(search.RawValue.replace('<1', '0.5' if under == '0.5로 근사' else None), errors='coerce')
         # 출시 이전 데이터도 원본 표에서는 보존한다. 비교에서는 명시한 구간만 사용한다.
-        cutoff = {'PUBG': '2017-03-01', 'Valorant': '2020-03-01'}.get(game, '1900-01-01')
+        cutoff = {'PUBG': '2017-03-01'}.get(game, '1900-01-01')
         search = search[search.Date.ge(pd.Timestamp(cutoff))]
         paired = twitch[twitch.Game.eq(game)].merge(search[['Date', 'GoogleTrends']], on='Date', how='inner').dropna(subset=['GoogleTrends', metric])
         paired = paired[paired.Year.between(*years)]
@@ -270,7 +271,7 @@ with compare:
             st.caption('연속된 두 해의 관측 개월 구성이 다를 수 있으므로 변화율과 함께 MatchedMonths를 확인하세요.')
             st.dataframe(summary.round(3), hide_index=True, use_container_width=True)
             st.download_button('비교 결과 CSV 받기 (앱 집계)', summary.to_csv(index=False).encode('utf-8-sig'), f'{game}_annual_comparison.csv')
-        st.caption('Twitch와 Trends는 공통으로 관측된 달만 연결합니다. PUBG는 2017년 3월, Valorant는 2020년 3월부터 비교합니다. 별도 요청으로 받은 Trends 값의 게임 간 크기는 직접 비교하지 않습니다.')
+        st.caption('Twitch와 Trends는 공통으로 관측된 달만 연결합니다. PUBG는 2017년 3월부터 비교합니다. 별도 요청으로 받은 Trends 값의 게임 간 크기는 직접 비교하지 않습니다.')
 with records:
     st.subheader('Steam 필터링 자료 (값 유지)')
     st.download_button('steam_selected.csv 그대로 받기', steam_bytes, 'steam_selected.csv', 'text/csv')
@@ -289,3 +290,6 @@ with records:
 
 [저장소와 데이터](https://github.com/dg2025828/esports26) · [Kaggle 데이터 설명](https://www.kaggle.com/datasets/rankirsh/evolution-of-top-games-on-twitch)
 ''')
+
+with review:
+    render_trends_review(ROOT, steam)
