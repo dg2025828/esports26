@@ -59,6 +59,17 @@ Steam의 name·steam_appid·month·avg_players·peak_players를 읽고, Twitch�
 
 ## 연도별 핵심 분석
 
+### Counter-Strike 검색어 통합
+
+CS·CS:GO·CS2는 하나의 Counter-Strike 항목으로 분석한다. Google Trends 보조 분석과 Steam 월별 비교에는 세 검색어를 합친 선 하나를 표시한다.
+
+- 원본의 Counter-Strike, Counter-Strike Global Offensive, Counter-Strike 2 열을 각각 Z-score(ddof=0)로 표준화하고 같은 비중으로 평균한다.
+- 표준화 기준은 파일의 2016년 이후 전체 월로 고정한다. 화면의 연도 선택에 따라 이 기준을 바꾸지 않는다.
+- `<1`은 선택한 기준에 따라 제외하거나 0.5로 근사한다. 세 검색어 중 하나라도 유효하지 않은 달은 통합지수를 계산하지 않는다. 원본의 숫자 0은 유지한다.
+- 통합지수 = [Z(CS) + Z(CS:GO) + Z(CS2)] / 3. 실제 검색량 합계나 Google 공식 0~100 지수가 아닌, 팀이 계산한 보조 지표다. 검색어 중복은 제거할 수 없으며 기준 기간·가중치에 따라 결과가 달라질 수 있다.
+- 음수·0이 가능한 지수이므로 전년 대비 변화율 대신 지수 차이(SearchIndexChange)를 표시한다. 원본 점검 화면의 세 선은 계산 근거 확인용으로 보존한다.
+- Steam 앱 ID 730은 기존과 같이 연속 기록 하나로 사용한다. 원본 Twitch의 CS:GO·CS2 이름은 Counter-Strike로 통일한다.
+
 - Steam 평균 동시접속자: 공통 월의 avg_players 평균
 - Twitch Avg_viewers: 공통 월의 월평균 동시 시청자 평균
 - Twitch Peak_viewers: 공통 월 중 최댓값
@@ -80,4 +91,5 @@ Z-score 선 그래프, 산점도, Pearson 상관계수, 단순 최소제곱 회�
 ## 한계
 
 Steam 밖의 플레이어·Twitch 밖의 시청자, 월별 상위 200개 목록에서 빠진 기록은 포함하지 않는다. 게임 선택·플랫폼·관측 기간에 편향이 있다. 2021년 Twitch와 PUBG 출시 초기 연도는 일부 월만 포함한다. Twitch 전체 게임 방송은 대회 방송만의 지표가 아니며, 검색·게임 이용·시청은 서로 다른 활동이다. 개인 이름·연락처·주소·학번을 분석하지 않는다.
+
 

@@ -3,13 +3,12 @@ import io
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
-from trends_review import render_trends_review
+from trends_review import render_trends_review, load_search, CS_METHOD
 
 ROOT = Path(__file__).resolve().parent
 GAMES = ['Counter-Strike', 'PUBG']
 FILES = {g: ROOT / f'{g}_googletrend.csv' for g in GAMES}
-DEFAULT_SERIES = {'Counter-Strike': 'Counter-Strike Global Offensive', 'PUBG': 'PUBG Battlegrounds'}
-ALIASES = {'Counter-Strike: Global Offensive': 'Counter-Strike', 'Counter-Strike 2': 'Counter-Strike', "PLAYERUNKNOWN'S BATTLEGROUNDS": 'PUBG', 'PUBG: BATTLEGROUNDS': 'PUBG'}
+ALIASES = {'Counter-Strike: Global Offensive': 'Counter-Strike', 'Counter-Strike Global Offensive': 'Counter-Strike', 'CS:GO': 'Counter-Strike', 'CS2': 'Counter-Strike', 'Counter-Strike 2': 'Counter-Strike', "PLAYERUNKNOWN'S BATTLEGROUNDS": 'PUBG', 'PUBG: BATTLEGROUNDS': 'PUBG'}
 METRICS = {'Avg_viewers': '평균 동시 시청자 수 (월평균의 평균)', 'Peak_viewers': '최고 동시 시청자 수 (관측 월 중 최고값)', 'Hours_watched': '총 시청 시간 (관측 월 합계, 시간)'}
 
 @st.cache_data
@@ -225,13 +224,11 @@ with compare:
     if not options:
         st.info('해당 게임의 Google Trends 파일이 없습니다.')
     else:
-        series = st.selectbox('비교할 검색어·주제', options, index=options.index(DEFAULT_SERIES[game]) if DEFAULT_SERIES[game] in options else 0)
         under = st.radio('Google Trends <1 처리', ['결측으로 제외', '0.5로 근사'], horizontal=True)
-        search = trends[trends.Game.eq(game) & trends.Series.eq(series)].copy()
-        search['GoogleTrends'] = pd.to_numeric(search.RawValue.replace('<1', '0.5' if under == '0.5로 근사' else None), errors='coerce')
-        # 출시 이전 데이터도 원본 표에서는 보존한다. 비교에서는 명시한 구간만 사용한다.
-        cutoff = {'PUBG': '2017-03-01'}.get(game, '1900-01-01')
-        search = search[search.Date.ge(pd.Timestamp(cutoff))]
+        search = load_search(pd.read_csv(FILES[game], encoding='utf-8-sig', dtype=str), game, under)
+        if game == 'Counter-Strike':
+            st.markdown('**Counter-Strike 통합 검색 관심지수 · CS + CS:GO + CS2**')
+            st.caption(CS_METHOD)
         paired = twitch[twitch.Game.eq(game)].merge(search[['Date', 'GoogleTrends']], on='Date', how='inner').dropna(subset=['GoogleTrends', metric])
         paired = paired[paired.Year.between(*years)]
         summary = paired.groupby('Year', as_index=False).agg(
@@ -253,7 +250,7 @@ with compare:
                 ax.scatter(summary.GoogleTrends, summary.Twitch, c='#7753c8')
                 for row in summary.itertuples():
                     ax.annotate(str(row.Year), (row.GoogleTrends, row.Twitch), fontsize=9)
-                ax.set(xlabel='Google Trends annual mean', ylabel=metric)
+                ax.set(xlabel='Combined search index (annual mean)' if game == 'Counter-Strike' else 'Google Trends annual mean', ylabel=metric)
                 ax.grid(alpha=.2)
                 fig.tight_layout()
                 st.pyplot(fig)
@@ -264,11 +261,19 @@ with compare:
                 st.metric('연도별 Pearson 상관계수', f'{r:.3f}' if pd.notna(r) else '계산 불가')
                 st.write(f'비교 연도 수: {n}개. 연도 수가 적고 장기 추세가 섞여 있으므로 인과관계로 해석하지 않습니다.')
             summary = summary.sort_values('Year')
-            summary['SearchChangePct'] = summary.GoogleTrends.pct_change(fill_method=None).where(summary.Year.diff().eq(1)) * 100
+            if game == 'Counter-Strike':
+                # Standardized scores can be zero or negative; use index differences, never percent change.
+                summary['SearchIndexChange'] = summary.GoogleTrends.diff().where(summary.Year.diff().eq(1))
+                search_change = summary.SearchIndexChange
+            else:
+                summary['SearchChangePct'] = summary.GoogleTrends.pct_change(fill_method=None).where(summary.Year.diff().eq(1)) * 100
+                search_change = summary.SearchChangePct
             summary['TwitchChangePct'] = summary.Twitch.pct_change(fill_method=None).where(summary.Year.diff().eq(1)) * 100
-            summary['SearchDownTwitchMaintained'] = (summary.SearchChangePct.lt(0) & summary.TwitchChangePct.ge(0)).where(summary.SearchChangePct.notna() & summary.TwitchChangePct.notna())
+            summary['SearchDownTwitchMaintained'] = (search_change.lt(0) & summary.TwitchChangePct.ge(0)).where(search_change.notna() & summary.TwitchChangePct.notna())
             st.subheader('검색 관심 감소·시청 관심 유지 구간 찾기')
             st.caption('연속된 두 해의 관측 개월 구성이 다를 수 있으므로 변화율과 함께 MatchedMonths를 확인하세요.')
+            if game == 'Counter-Strike':
+                st.caption('SearchIndexChange는 통합지수의 전년 대비 차이입니다. 표준화 지수에는 음수와 0이 있어 변화율(%)을 계산하지 않습니다. GoogleTrends 열도 CS에서는 통합지수입니다.')
             st.dataframe(summary.round(3), hide_index=True, use_container_width=True)
             st.download_button('비교 결과 CSV 받기 (앱 집계)', summary.to_csv(index=False).encode('utf-8-sig'), f'{game}_annual_comparison.csv')
         st.caption('Twitch와 Trends는 공통으로 관측된 달만 연결합니다. PUBG는 2017년 3월부터 비교합니다. 별도 요청으로 받은 Trends 값의 게임 간 크기는 직접 비교하지 않습니다.')
@@ -293,3 +298,4 @@ with records:
 
 with review:
     render_trends_review(ROOT, steam)
+
