@@ -77,15 +77,6 @@ Z-score 선 그래프, 산점도, Pearson 상관계수, 단순 최소제곱 회�
 
 각 배포처의 라이선스와 이용 조건을 확인한다. 공개라는 이유만으로 재배포 권한을 가정하지 않는다. Google Trends를 이용할 때 출처를 표시한다.
 
-## 실행과 배포
-
-```bash
-python -m pip install -r requirements.txt
-python -m streamlit run app.py
-```
-
-Streamlit Cloud에서 Repository `dg2025828/esports26`, Branch `main`, Main file path `app.py`로 설정한다. 새 모듈 trends_review.py도 함께 올려야 한다. 실제 배포 주소와 실행 여부는 팀이 확인한다.
-
 ## 한계
 
 Steam 밖의 플레이어·Twitch 밖의 시청자, 월별 상위 200개 목록에서 빠진 기록은 포함하지 않는다. 게임 선택·플랫폼·관측 기간에 편향이 있다. 2021년 Twitch와 PUBG 출시 초기 연도는 일부 월만 포함한다. Twitch 전체 게임 방송은 대회 방송만의 지표가 아니며, 검색·게임 이용·시청은 서로 다른 활동이다. 개인 이름·연락처·주소·학번을 분석하지 않는다.
