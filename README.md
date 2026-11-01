@@ -2,7 +2,7 @@
 
 ## 분석 범위
 
-Counter-Strike와 PUBG 두 게임만 분석한다. LoL·Valorant는 이번 Steam 기반 비교에서 제외하며, Dota 2도 현재 확정된 두 게임 분석 범위에 넣지 않는다. 선생님 안내의 'Google Trends 다섯 파일'은 초기 후보 기준이고, 현재 앱에서는 최종 선정한 두 게임의 원본만 점검한다. 범위 변경 사항은 구술 평가 때 설명한다.
+Counter-Strike와 PUBG 두 게임의 Steam 플레이어 수와 Twitch 시청 관심을 분석한다. Google Trends는 두 게임의 검색 관심을 확인하는 보조 자료로 사용한다.
 
 핵심 질문은 **게임의 평균 동시접속자 수가 감소하면 Twitch 평균 동시 시청자 수도 정말 감소하는가?** 이다. Steam × Twitch를 핵심 분석으로, Google Trends를 검색 관심의 보조 자료로 사용한다.
 
@@ -16,10 +16,10 @@ Counter-Strike와 PUBG 두 게임만 분석한다. LoL·Valorant는 이번 Steam
 - steam_selected.csv: 두 게임의 Steam 필터링 자료
 - twichview.csv: Twitch 원본
 - Counter-Strike_googletrend.csv, PUBG_googletrend.csv: 두 게임의 Trends 원본
-- processing_log.md: 처리 기준과 확인 기록
+- processing_log.md 및 Log/: 처리 기준과 팀 활동 기록
 - README.md: 설명·실행 안내
 
-전체 Twitch 원본에 다른 게임의 행이 포함되어 있어도 파일 자체는 유지하고 앱 분석에서 두 게임만 선택한다. 별도 통합 CSV는 필요하지 않다.
+전체 Twitch 원본에 다른 게임의 행이 포함되어 있어도 파일 자체는 유지하고 앱 분석에서 두 게임만 선택한다. Twitch 입력 파일은 twichview.csv 하나를 사용한다.
 
 ## 선생님 피드백 반영
 
@@ -80,3 +80,4 @@ Z-score 선 그래프, 산점도, Pearson 상관계수, 단순 최소제곱 회�
 ## 한계
 
 Steam 밖의 플레이어·Twitch 밖의 시청자, 월별 상위 200개 목록에서 빠진 기록은 포함하지 않는다. 게임 선택·플랫폼·관측 기간에 편향이 있다. 2021년 Twitch와 PUBG 출시 초기 연도는 일부 월만 포함한다. Twitch 전체 게임 방송은 대회 방송만의 지표가 아니며, 검색·게임 이용·시청은 서로 다른 활동이다. 개인 이름·연락처·주소·학번을 분석하지 않는다.
+
