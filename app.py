@@ -3,6 +3,7 @@ import io
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
+from forecasting import render_forecast
 from trends_review import render_trends_review, load_search, CS_METHOD
 
 ROOT = Path(__file__).resolve().parent
@@ -132,7 +133,7 @@ a, b, c = st.columns(3)
 a.metric('Twitch 원본 행 수', f'{len(raw):,}')
 b.metric('Twitch 원본 기간', f'{twitch.Date.min():%Y.%m}–{twitch.Date.max():%Y.%m}')
 c.metric('현재 게임의 표시 연도', f'{len(annual)}개')
-steam_tab, view, compare, review, records = st.tabs(['Steam × Twitch 분석', 'Twitch 시청 추이', 'Google Trends 보조 분석', 'Trends 원본 점검·보조 축', '원본·집계 기준'])
+steam_tab, view, compare, review, records, forecast = st.tabs(['Steam × Twitch 분석', 'Twitch 시청 추이', 'Google Trends 보조 분석', 'Trends 원본 점검·보조 축', '원본·집계 기준', '다음 달 시청자 예측'])
 with steam_tab:
     st.subheader('Steam 플레이어 수와 Twitch 시청 지표')
     st.caption('월평균 동시접속자 수는 연간 이용자 총인원이 아닙니다. 기본 지표 Avg_viewers를 선택하면 평균 동시접속자와 평균 동시 시청자를 비교합니다.')
@@ -299,3 +300,6 @@ with records:
 with review:
     render_trends_review(ROOT, steam)
 
+
+with forecast:
+    render_forecast(steam, twitch, game)
