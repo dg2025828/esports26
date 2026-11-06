@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from forecasting import render_forecast
 from trends_review import render_trends_review, load_search, CS_METHOD
+from dashboard_ui import apply_design, hero, insight, annual_chart
 
 ROOT = Path(__file__).resolve().parent
 GAMES = ['Counter-Strike', 'PUBG']
@@ -95,23 +96,11 @@ def yearly_changes(frame, column):
     return ((frame[column] / previous - 1) * 100).where(valid)
 
 def line_chart(frame, columns, ylabel, title):
-    fig, ax = plt.subplots(figsize=(10, 3.8))
-    for column, label, color in columns:
-        ax.plot(frame.Year, frame[column], marker='o', lw=2, label=label, color=color)
-    ax.set(title=title, xlabel='Year', ylabel=ylabel)
-    ax.set_xticks(sorted(frame.Year.unique()))
-    ax.grid(alpha=.2)
-    ax.spines[['top', 'right']].set_visible(False)
-    if len(columns) > 1:
-        ax.legend(frameon=False)
-    fig.tight_layout()
-    st.pyplot(fig)
-    plt.close(fig)
+    annual_chart(frame, columns, ylabel, title)
 
-st.set_page_config(page_title='게임 관심도 × Twitch', page_icon='📊', layout='wide')
-st.title('게임 이용과 Twitch 시청의 관계')
-st.markdown('### 게임의 동시접속자 수가 줄어도 Twitch 시청 관심은 유지될까?')
-st.caption('원본은 월별 기록입니다. 연도별 그래프는 앱이 계산한 집계이며, 원본 파일을 수정하거나 누락 값을 채우지 않습니다.')
+st.set_page_config(page_title='Game & Viewers · 게임과 시청의 관계', page_icon='📊', layout='wide')
+apply_design()
+hero()
 try:
     raw, raw_bytes, twitch, trends = load_data()
     steam_raw, steam_bytes, steam = load_steam()
@@ -119,21 +108,29 @@ except (OSError, ValueError, KeyError) as exc:
     st.error(f'데이터를 읽지 못했습니다: {exc}')
     st.stop()
 
-st.sidebar.header('분석 조건')
+st.sidebar.markdown('<div class="brand">GAME <span>&</span> VIEWERS</div>', unsafe_allow_html=True)
+st.sidebar.caption('게임 이용과 Twitch 시청의 관계')
+st.sidebar.divider()
+st.sidebar.subheader('분석 조건')
 game = st.sidebar.selectbox('게임', GAMES)
 metric = st.sidebar.selectbox('Twitch 지표', list(METRICS), format_func=METRICS.get)
 lo, hi = int(twitch.Year.min()), int(max(twitch.Year.max(), trends.Date.dt.year.max() if not trends.empty else twitch.Year.max()))
 years = st.sidebar.slider('연도 범위', lo, hi, (lo, hi))
 full_only = st.sidebar.checkbox('Twitch 12개월 관측 연도만', value=False)
+st.sidebar.markdown('''<div class="side-note"><b>데이터 읽는 법</b><br>
+초록 · Steam 플레이어<br>보라 · Twitch 시청자<br>파랑 · Google 검색 관심<br><br>
+연도별 분석은 선택한 기간을 사용합니다.<br>예측 모델은 2021년 1–11월로 평가합니다.<br>
+Twitch는 게임 카테고리 전체 시청 기록입니다.</div>''', unsafe_allow_html=True)
 annual = aggregate(twitch)
 annual = annual[annual.Game.eq(game) & annual.Year.between(*years)]
 if full_only:
     annual = annual[annual.MonthsObserved.eq(12)]
 a, b, c = st.columns(3)
-a.metric('Twitch 원본 행 수', f'{len(raw):,}')
-b.metric('Twitch 원본 기간', f'{twitch.Date.min():%Y.%m}–{twitch.Date.max():%Y.%m}')
-c.metric('현재 게임의 표시 연도', f'{len(annual)}개')
-steam_tab, view, compare, review, records, forecast = st.tabs(['Steam × Twitch 분석', 'Twitch 시청 추이', 'Google Trends 보조 분석', 'Trends 원본 점검·보조 축', '원본·집계 기준', '다음 달 시청자 예측'])
+a.metric('선택한 게임', game)
+b.metric('표시하는 Twitch 연도', f'{len(annual)}개 연도')
+c.metric('Twitch 원본 규모 · 전체 게임', f'{len(raw):,}행')
+st.caption(f'Twitch 관측 기간 {twitch.Date.min():%Y.%m}–{twitch.Date.max():%Y.%m} · 원본 월별 기록을 연도별로 집계 · 누락 월은 0으로 채우지 않음')
+steam_tab, forecast, view, compare, review, records = st.tabs(['이용과 시청', '예측 모델', '시청 추이', '검색 관심', '전처리 점검', '데이터·출처'])
 with steam_tab:
     st.subheader('Steam 플레이어 수와 Twitch 시청 지표')
     st.caption('월평균 동시접속자 수는 연간 이용자 총인원이 아닙니다. 기본 지표 Avg_viewers를 선택하면 평균 동시접속자와 평균 동시 시청자를 비교합니다.')
@@ -157,10 +154,12 @@ with steam_tab:
             st.write(f'공통 비교 기간: {int(result.Year.min())}–{int(result.Year.max())} · {len(result)}개 연도')
             result['SteamZ'] = zscore(result.SteamPlayers)
             result['TwitchZ'] = zscore(result.Twitch)
-            line_chart(result, [('SteamZ', 'Steam (Z)', '#188878'), ('TwitchZ', 'Twitch (Z)', '#7753c8')], 'Z-score within selected years', game)
+            line_chart(result, [('SteamZ', 'Steam 플레이어', '#16816a'), ('TwitchZ', 'Twitch 시청', '#8057cf')], '표준화 지수 (Z-score)', f'{game} · 이용과 시청의 연도별 흐름')
             st.caption('각 지표를 선택 기간의 평균·표준편차(ddof=0)로 표준화했습니다. 연도가 하나이거나 값이 일정하면 표준화 선을 계산할 수 없습니다.')
             x, y = result.SteamPlayers, result.Twitch
             valid_fit = len(result) >= 3 and x.nunique() > 1 and y.nunique() > 1
+            if valid_fit:
+                insight(f'{len(result)}개 연도에서 Steam과 Twitch의 상관계수는 {x.corr(y):.3f}입니다. 아래 산점도의 각 점은 한 해의 기록이며, 이 수치만으로 원인과 결과를 알 수는 없습니다.')
             left, right = st.columns(2)
             with left:
                 fig, ax = plt.subplots(figsize=(5, 3.5))
@@ -193,7 +192,8 @@ with steam_tab:
                 st.caption('ViewerPlayerRatio = 평균 동시 시청자 ÷ 평균 동시접속자. 두 집단이 동일한 사람이라는 뜻이 아니며 시청 전환율도 아닙니다.')
             st.subheader('플레이어 감소·시청 관심 유지 구간')
             st.caption('원본에 공통으로 존재하는 달만 집계합니다. 변화율은 관측 월 구성이 동일한 연속 연도에만 계산합니다. MatchedMonths와 ObservedMonths를 확인하세요.')
-            st.dataframe(result.round(3), hide_index=True, use_container_width=True)
+            with st.expander('연도별 수치와 관측 월 확인'):
+                st.dataframe(result.round(3), hide_index=True, use_container_width=True)
             hits = result[result.PlayersDownTwitchMaintained.eq(True)]
             if not hits.empty:
                 st.write('현재 조건에서 해당하는 연도: ' + ', '.join(hits.Year.astype(str)))
@@ -216,7 +216,7 @@ with view:
     if annual.empty:
         st.info('현재 조건에 해당하는 연도별 기록이 없습니다.')
     else:
-        line_chart(annual, [(metric, metric, '#7753c8')], metric, game)
+        line_chart(annual, [(metric, METRICS[metric], '#8057cf')], METRICS[metric], f'{game} · 연도별 Twitch 시청')
         st.dataframe(annual.round(1), hide_index=True, use_container_width=True)
     st.info('Avg_viewers는 서로 다른 사람의 총인원이 아닌 평균 동시 시청자 수입니다. 관측 개월 수가 다른 해의 합계·최고값은 같은 조건의 연간 값으로 비교하기 어렵습니다. 2021년 자료는 11월까지입니다.')
 with compare:
@@ -243,7 +243,7 @@ with compare:
         else:
             summary['SearchZ'] = zscore(summary.GoogleTrends)
             summary['TwitchZ'] = zscore(summary.Twitch)
-            line_chart(summary, [('SearchZ', 'Google Trends (Z)', '#287cb4'), ('TwitchZ', 'Twitch (Z)', '#7753c8')], 'Within-game Z-score', game)
+            line_chart(summary, [('SearchZ', 'Google 검색 관심', '#377fb6'), ('TwitchZ', 'Twitch 시청', '#8057cf')], '표준화 지수 (Z-score)', f'{game} · 검색과 시청의 흐름')
             st.caption('선택 기간에서 게임별로 계산한 Z-score입니다. 값이 일정하거나 연도가 하나면 표준화할 수 없습니다.')
             left, right = st.columns(2)
             with left:

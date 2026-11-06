@@ -81,31 +81,60 @@ def evaluate(samples):
 
 def render_forecast(steam, twitch, game):
     import streamlit as st
+    import altair as alt
+    from dashboard_ui import chart_style, insight, INK, STEAM, TWITCH, BLUE
 
-    st.subheader(f'{game} · 다음 달 Twitch 평균 동시 시청자 예측')
-    st.caption('이전 달까지 공개된 월별 수치로 다음 달을 한 달씩 예측합니다. 위의 연도·Twitch 지표 선택과 별개로 고정된 평가 기간과 평균 시청자 수를 사용합니다.')
+    st.subheader(f'{game} · 다음 달 시청자를 예측할 수 있을까?')
+    st.caption('직전 달까지의 기록으로 다음 달 평균 동시 시청자 수를 예측합니다. 사이드바의 연도·지표 필터와 별개로, 2021년 1–11월의 실제 기록과 비교합니다.')
     try:
         scores, forecasts, chosen, counts = evaluate(monthly_samples(steam, twitch, game))
     except ValueError as exc:
         st.info(str(exc))
         return
-    st.write(f'학습: 2019년까지 {counts[0]}개월 · 검증: 2020년 {counts[1]}개월 · 최종 평가: 2021년 1–11월 {counts[2]}개월')
-    st.dataframe(scores.round({'alpha': 2, '2020 검증 MAE': 1, '2021 평가 MAE': 1}), use_container_width=True)
-    st.caption('MAE: 월별 실제값과 예측값의 절대 오차를 평균한 값(명). 작을수록 좋습니다. 2020년으로 모델과 alpha를 정한 뒤 2020년까지 다시 학습하고 2021년을 평가합니다.')
-    st.markdown(f'**2020년 검증에서 선택한 모델: {chosen}**')
+    for col, number, title, period, count in zip(st.columns(3), ['01', '02', '03'],
+            ['학습', '검증·모델 선택', '최종 평가'], ['2019년까지', '2020년', '2021년 1–11월'], counts):
+        col.markdown(f'<div class="split-step">{number} / {title}<b>{period}</b>{count}개월의 기록</div>', unsafe_allow_html=True)
+    for col, model, label in zip(st.columns(3), [BASE, LINEAR, FULL],
+            ['평균으로 예측 · 기준 오차', '단순 회귀 · 예측 오차', 'Twitch + Steam 릿지 · 예측 오차']):
+        col.metric(label, f"{scores.at[model, '2021 평가 MAE']:,.0f}명")
+    st.caption('세 카드 모두 2021년 평가 MAE입니다. 실제 시청자 수와 평균적으로 몇 명 차이가 났는지 나타내며, 작을수록 좋습니다.')
     delta = scores.at[RIDGE, '2021 평가 MAE'] - scores.at[FULL, '2021 평가 MAE']
     direction = '줄었습니다' if delta > 0 else '늘었습니다' if delta < 0 else '같았습니다'
-    st.write(f'Steam 입력을 추가한 릿지 모델의 2021년 MAE는 Twitch만 사용한 릿지 모델보다 {abs(delta):,.0f}명만큼 {direction}.')
+    insight(f'2020년 검증에서 선택한 모델은 {chosen}입니다. Steam을 추가한 릿지는 Twitch만 쓴 릿지보다 2021년 오차가 {abs(delta):,.0f}명만큼 {direction}.', '모델 비교에서 발견한 점')
+    st.subheader('실제 기록과 예측을 나란히 비교')
+    st.caption('실제값은 남색 실선, 예측값은 색깔 점선입니다. 두 그래프의 세로축 범위는 같습니다. 선 위에 마우스를 올리면 월별 수치를 확인할 수 있습니다.')
+    ymax = float(forecasts[['actual', LINEAR, RIDGE, FULL]].max().max()) * 1.08
     left, right = st.columns(2)
     for panel, title, models in [
         (left, '단순 선형회귀', [LINEAR]),
         (right, '시차 릿지 회귀', [RIDGE, FULL]),
     ]:
         with panel:
-            st.markdown(f'**{title} · 2021년 실제값과 예측값**')
-            chart = forecasts[['actual', *models]].rename(columns={'actual': '실제 시청자 수'})
-            st.line_chart(chart, x_label='예측 대상 월', y_label='평균 동시 시청자 수(명)')
+            st.markdown(f'**{title}**')
+            chart_data = forecasts[['actual', *models]].rename(columns={'actual': '실제 시청자 수'}).rename_axis('Date').reset_index().melt('Date', var_name='모델', value_name='시청자')
+            labels = ['실제 시청자 수', *models]
+            colors = {'실제 시청자 수': INK, LINEAR: STEAM, RIDGE: TWITCH, FULL: BLUE}
+            chart = alt.Chart(chart_data).mark_line(point=True, strokeWidth=2.5).encode(
+                x=alt.X('Date:T', title='예측 대상 월 · 2021년', axis=alt.Axis(format='%m월', tickCount=6, labelAngle=0)),
+                y=alt.Y('시청자:Q', title='평균 동시 시청자 수 (명)', scale=alt.Scale(domain=[0, ymax]), axis=alt.Axis(format='~s')),
+                color=alt.Color('모델:N', scale=alt.Scale(domain=labels, range=[colors[k] for k in labels])),
+                strokeDash=alt.StrokeDash('모델:N', scale=alt.Scale(domain=labels, range=[[1, 0]] + [[6, 3]] * len(models)), legend=None),
+                tooltip=[alt.Tooltip('Date:T', title='월', format='%Y-%m'), '모델:N', alt.Tooltip('시청자:Q', format=',.0f')],
+            ).properties(height=290)
+            st.altair_chart(chart_style(chart), use_container_width=True, theme=None)
             st.caption(' · '.join(f"{m} MAE {scores.at[m, '2021 평가 MAE']:,.0f}명" for m in models))
+    st.subheader('어느 모델의 오차가 작을까?')
+    score_data = scores.reset_index()
+    bars = alt.Chart(score_data).mark_bar(cornerRadiusEnd=4, color=STEAM, size=22).encode(
+        y=alt.Y('모델:N', sort=alt.SortField('2021 평가 MAE', order='ascending'), title=None),
+        x=alt.X('2021 평가 MAE:Q', title='2021년 평균 절대 오차 MAE (명) · 낮을수록 좋음'),
+        tooltip=['모델:N', alt.Tooltip('2021 평가 MAE:Q', format=',.1f')],
+    ).properties(height=200)
+    st.altair_chart(chart_style(bars), use_container_width=True, theme=None)
+    st.caption('막대는 2021년 평가 결과입니다. 최종 모델 선택은 이 순위가 아니라 2020년 검증 결과로 했습니다.')
+    with st.expander('전체 모델의 검증·평가 수치와 alpha'):
+        st.dataframe(scores.round({'alpha': 2, '2020 검증 MAE': 1, '2021 평가 MAE': 1}), use_container_width=True)
+        st.caption('2020년 검증으로 모델과 alpha를 정한 뒤, 2020년까지 다시 학습하고 2021년을 평가했습니다.')
     st.download_button('월별 실제값·예측값 CSV', forecasts.to_csv(index_label='Date').encode('utf-8-sig'),
                        file_name=f'{game}_monthly_forecast.csv')
     with st.expander('모델과 비교 기준'):
