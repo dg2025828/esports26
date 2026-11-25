@@ -45,7 +45,8 @@ def main():
             viewers=('Avg_viewers', 'mean'))
         full = annual[annual.months.eq(12)]
         samples = monthly_samples(s, t, game)
-        scores, preds, overall, counts = evaluate(samples)
+        scores, preds, selected, counts = evaluate(samples)
+        overall = scores['2020 검증 MAE'].idxmin()
         reg = scores.loc[list(FEATURES), '2020 검증 MAE'].idxmin()
         print('\n###', game)
         print('annual paired observations:\n', annual.round(1).to_string())

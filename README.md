@@ -13,7 +13,9 @@ Counter-Strike와 PUBG 두 게임의 Steam 플레이어 수와 Twitch 시청 관
 - app.py: 앱 실행 파일
 - trends_review.py: 원본 점검 및 월별 보조 축 비교
 - requirements.txt: 실행 패키지
-- steam_selected.csv: 두 게임의 Steam 필터링 자료
+- steam_selected.csv: Kaggle Steam Monthly Average Players v2에서 추출한 두 게임의 Steam 자료
+- select_steam_source.py: 원본 CSV에서 두 게임의 기간·열을 재추출하는 코드
+- check_results.py: 주요 결과 재계산 코드
 - twichview.csv: Twitch 원본
 - Counter-Strike_googletrend.csv, PUBG_googletrend.csv: 두 게임의 Trends 원본
 - processing_log.md 및 Log/: 처리 기준과 팀 활동 기록
@@ -82,7 +84,7 @@ Z-score 선 그래프, 산점도, Pearson 상관계수, 단순 최소제곱 회�
 ## 출처와 이용 조건
 
 - Twitch: [Kaggle Top games on Twitch 2016–2023, rankirsh](https://www.kaggle.com/datasets/rankirsh/evolution-of-top-games-on-twitch). 데이터셋 제목과 이번 파일의 실제 기간은 다르다.
-- Steam: 팀이 업로드한 steam.csv에서 ID 730·578080의 필요한 기간·열만 선택했다. 원본의 정확한 다운로드 URL·수집 날짜·라이선스는 팀이 추가 기록해야 한다.
+- Steam: Victor Laputsky, [Steam Monthly Average Players](https://www.kaggle.com/datasets/lunthu/steam-monthly-average-players), 버전 2(2025년 10월 31일 업데이트), 원자료 steamcharts.csv. 2026년 11월 25일 다운로드하여 Steam 앱 ID 730·578080의 2016년 이후 기록과 필요한 5개 열을 선택했다. 제공자는 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)으로 표시한다. 제공자 설명상 SteamCharts를 수집한 자료이며 [SteamCharts](https://steamcharts.com/)가 1차 표시 출처다. 수집 사이트 자체 이용 조건도 확인한다. 원본 612,265행·7열, 선택 후 220행·5열. 원본 CSV SHA-256: `07668e0ab970099a28cd83fea2ab34813867e209f255c6b156b3e28aeb3483cb`.
 - Steam 대조 표: https://steamcharts.com/app/730 및 https://steamcharts.com/app/578080
 - Google Trends: https://trends.google.com/trends/ . 지역·검색 유형·카테고리·주제 구분·다운로드 날짜는 원래 설정을 확인해야 한다.
 
@@ -153,4 +155,4 @@ Steam 밖의 플레이어·Twitch 밖의 시청자, 월별 상위 200개 목록�
 - 공통 관측 월이 12개월인 연도의 Pearson 상관계수는 CS 0.9239(2016~2020, 5개 연도), PUBG 0.9972(2018~2020, 3개 연도)이다. 각 R²는 0.8536, 0.9944다. 연도 표본이 적고 추세가 영향을 미칠 수 있어 인과관계로 해석하지 않는다.
 - 릿지 alpha가 0이면 벌점이 사라져 동일한 입력·표준화·절편 조건의 최소제곱 선형회귀와 같다. 계수 축소가 실제 성능에 도움이 되었는지는 같은 입력과 분할에서 비교해야 한다.
 - 모든 수치는 저장소 루트에서 `python check_results.py`로 확인한다. 팀의 결과 해석, 개인 기록, 원자료 출처·이용 조건은 팀이 확인해 작성한다.
-- Steam 원본 후보는 Victor Laputsky의 [Steam Monthly Average Players](https://www.kaggle.com/datasets/lunthu/steam-monthly-average-players)이다. 열 구조와 기간이 비슷하나 이 저장소의 원본과 동일한지 확인되지 않아 확정 출처로 기록하지 않는다.
+- 2026년 11월 25일 Kaggle 버전 2 원본을 내려받아 두 게임·기간을 다시 추출했고, 기존 220행과 게임 ID·월·이름·평균 및 최고 플레이어 수가 모두 일치함을 확인했다. `python select_steam_source.py /경로/steamcharts.csv`로 재추출할 수 있다.
