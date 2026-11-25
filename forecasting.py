@@ -75,7 +75,8 @@ def evaluate(samples):
         table.append({'모델': name, 'alpha': alpha, '2020 검증 MAE': mae(valid.actual, v),
                       '2021 평가 MAE': mae(test.actual, p)})
     scores = pd.DataFrame(table).set_index('모델')
-    chosen = scores['2020 검증 MAE'].idxmin()
+    # Choose a trained regression model; show both baseline methods separately.
+    chosen = scores.loc[list(FEATURES), '2020 검증 MAE'].idxmin()
     return scores, predictions, chosen, (len(train), len(valid), len(test))
 
 
@@ -100,7 +101,8 @@ def render_forecast(steam, twitch, game):
     st.caption('세 카드 모두 2021년 평가 MAE입니다. 실제 시청자 수와 평균적으로 몇 명 차이가 났는지 나타내며, 작을수록 좋습니다.')
     delta = scores.at[RIDGE, '2021 평가 MAE'] - scores.at[FULL, '2021 평가 MAE']
     direction = '줄었습니다' if delta > 0 else '늘었습니다' if delta < 0 else '같았습니다'
-    insight(f'2020년 검증에서 선택한 모델은 {chosen}입니다. Steam을 추가한 릿지는 Twitch만 쓴 릿지보다 2021년 오차가 {abs(delta):,.0f}명만큼 {direction}.', '모델 비교에서 발견한 점')
+    best_all = scores['2020 검증 MAE'].idxmin()
+    insight(f'학습한 회귀 모델 중 2020년 검증 MAE가 가장 낮은 모델은 {chosen}입니다. 비교 기준을 포함한 전체 후보 중에서는 {best_all}의 검증 오차가 가장 낮았습니다. Steam 추가 릿지의 2021년 오차는 Twitch 릿지보다 {abs(delta):,.0f}명만큼 {direction}.', '모델 비교에서 발견한 점')
     st.subheader('실제 기록과 예측을 나란히 비교')
     st.caption('실제값은 남색 실선, 예측값은 색깔 점선입니다. 두 그래프의 세로축 범위는 같습니다. 선 위에 마우스를 올리면 월별 수치를 확인할 수 있습니다.')
     ymax = float(forecasts[['actual', LINEAR, RIDGE, FULL]].max().max()) * 1.08
@@ -131,7 +133,7 @@ def render_forecast(steam, twitch, game):
         tooltip=['모델:N', alt.Tooltip('2021 평가 MAE:Q', format=',.1f')],
     ).properties(height=200)
     st.altair_chart(chart_style(bars), use_container_width=True, theme=None)
-    st.caption('막대는 2021년 평가 결과입니다. 최종 모델 선택은 이 순위가 아니라 2020년 검증 결과로 했습니다.')
+    st.caption('막대는 2021년 평가 결과입니다. 회귀 모델 선택은 2020년 검증 결과로 했으며, 평균과 직전 달 유지는 비교 기준으로 함께 표시합니다.')
     with st.expander('전체 모델의 검증·평가 수치와 alpha'):
         st.dataframe(scores.round({'alpha': 2, '2020 검증 MAE': 1, '2021 평가 MAE': 1}), use_container_width=True)
         st.caption('2020년 검증으로 모델과 alpha를 정한 뒤, 2020년까지 다시 학습하고 2021년을 평가했습니다.')
@@ -146,3 +148,4 @@ def render_forecast(steam, twitch, game):
             '입력 표준화에는 학습 자료만 쓰고, alpha가 클수록 회귀계수를 더 줄입니다. '
             '0.01·0.1·1·10·100 중 검증 MAE가 가장 낮은 값을 고릅니다.'
         )
+
