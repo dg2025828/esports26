@@ -56,7 +56,7 @@ def main():
             print('12-month annual Pearson r =', round(corr, 4), 'R² =', round(corr*corr, 4))
         print('forecast train/validation/test sample counts:', counts)
         print(scores.round(2).to_string())
-        print('best among all:', overall, '| best trained regression:', reg)
+        print('best validation:', overall, '| best trained regression:', reg, '| adopted:', selected)
         for name in scores.index:
             delta = (preds[name] - preds.actual).abs()
             print('test largest absolute error:', name, delta.idxmax().strftime('%Y-%m'),
